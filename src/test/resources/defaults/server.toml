@@ -1,0 +1,3 @@
+# Bundled defaults — copied into place when the config file is missing
+[server]
+port = 1234
