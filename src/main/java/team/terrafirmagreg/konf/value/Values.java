@@ -4,6 +4,8 @@ import com.electronwill.nightconfig.core.CommentedConfig;
 import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.file.FileConfig;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -11,47 +13,48 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import team.terrafirmagreg.konf.ConfigFile;
+import team.terrafirmagreg.konf.InvalidConfigException;
 
 /** Coercion, clamping and validation shared by bound values — invalid file content resets to default. */
 @Slf4j
 @UtilityClass
 public class Values {
 
-    public static ConfigValue<Boolean> bool(ConfigFile file, ValueBuilder<Boolean> b) {
-        return bind(file, b, raw -> raw instanceof Boolean v ? v : null, Values::store);
+    public static ConfigValue<Boolean> bool(Backend backend, ValueBuilder<Boolean> b) {
+        return bind(backend, b, raw -> raw instanceof Boolean v ? v : null, Values::store);
     }
 
-    public static ConfigValue<Integer> integer(ConfigFile file, ValueBuilder<Integer> b) {
-        return bind(file, b, raw -> raw instanceof Number n ? n.intValue() : null, Values::store);
+    public static ConfigValue<Integer> integer(Backend backend, ValueBuilder<Integer> b) {
+        return bind(backend, b, raw -> raw instanceof Number n ? n.intValue() : null, Values::store);
     }
 
-    public static ConfigValue<Long> longValue(ConfigFile file, ValueBuilder<Long> b) {
-        return bind(file, b, raw -> raw instanceof Number n ? n.longValue() : null, Values::store);
+    public static ConfigValue<Long> longValue(Backend backend, ValueBuilder<Long> b) {
+        return bind(backend, b, raw -> raw instanceof Number n ? n.longValue() : null, Values::store);
     }
 
-    public static ConfigValue<Double> real(ConfigFile file, ValueBuilder<Double> b) {
-        return bind(file, b, raw -> raw instanceof Number n ? n.doubleValue() : null, Values::store);
+    public static ConfigValue<Double> real(Backend backend, ValueBuilder<Double> b) {
+        return bind(backend, b, raw -> raw instanceof Number n ? n.doubleValue() : null, Values::store);
     }
 
-    public static ConfigValue<Float> floatValue(ConfigFile file, ValueBuilder<Float> b) {
-        return bind(file, b, raw -> raw instanceof Number n ? n.floatValue() : null, Values::store);
+    public static ConfigValue<Float> floatValue(Backend backend, ValueBuilder<Float> b) {
+        return bind(backend, b, raw -> raw instanceof Number n ? n.floatValue() : null, Values::store);
     }
 
-    public static ConfigValue<Byte> byteValue(ConfigFile file, ValueBuilder<Byte> b) {
-        return bind(file, b, raw -> raw instanceof Number n ? n.byteValue() : null, Values::store);
+    public static ConfigValue<Byte> byteValue(Backend backend, ValueBuilder<Byte> b) {
+        return bind(backend, b, raw -> raw instanceof Number n ? n.byteValue() : null, Values::store);
     }
 
-    public static ConfigValue<Short> shortValue(ConfigFile file, ValueBuilder<Short> b) {
-        return bind(file, b, raw -> raw instanceof Number n ? n.shortValue() : null, Values::store);
+    public static ConfigValue<Short> shortValue(Backend backend, ValueBuilder<Short> b) {
+        return bind(backend, b, raw -> raw instanceof Number n ? n.shortValue() : null, Values::store);
     }
 
-    public static ConfigValue<String> string(ConfigFile file, ValueBuilder<String> b) {
-        return bind(file, b, raw -> raw instanceof String v ? v : null, Values::store);
+    public static ConfigValue<String> string(Backend backend, ValueBuilder<String> b) {
+        return bind(backend, b, raw -> raw instanceof String v ? v : null, Values::store);
     }
 
-    public static ConfigValue<List<String>> stringList(ConfigFile file, ValueBuilder<List<String>> b) {
+    public static ConfigValue<List<String>> stringList(Backend backend, ValueBuilder<List<String>> b) {
         return bind(
-                file,
+                backend,
                 b,
                 raw -> {
                     if (raw instanceof List<?> list && list.stream().allMatch(String.class::isInstance)) {
@@ -64,44 +67,43 @@ public class Values {
                 Values::store);
     }
 
-    public static <E extends Enum<E>> ConfigValue<E> enumValue(ConfigFile file, ValueBuilder<E> b) {
+    public static <E extends Enum<E>> ConfigValue<E> enumValue(Backend backend, ValueBuilder<E> b) {
         @SuppressWarnings("unchecked")
         val type = (Class<E>) b.defaultValue().getDeclaringClass();
-        return bind(file, b, raw -> raw instanceof String name ? parse(type, name) : null, Values::store);
+        return bind(backend, b, raw -> raw instanceof String name ? parse(type, name) : null, Values::store);
     }
 
-    public static <T> ConfigValue<T> generic(ConfigFile file, ValueBuilder<T> b) {
+    public static <T> ConfigValue<T> generic(Backend backend, ValueBuilder<T> b) {
         @SuppressWarnings("unchecked")
         val type = (Class<T>) b.defaultValue().getClass();
-        return bind(file, b, raw -> type.isInstance(raw) ? type.cast(raw) : null, Values::store);
+        return bind(backend, b, raw -> type.isInstance(raw) ? type.cast(raw) : null, Values::store);
     }
 
-    public static <T> ConfigValue<T> coded(ConfigFile file, ValueBuilder<T> b, ValueCodec<T> codec) {
-        return bind(file, b, codec::load, codec::store);
+    public static <T> ConfigValue<T> coded(Backend backend, ValueBuilder<T> b, ValueCodec<T> codec) {
+        return bind(backend, b, codec::load, codec::store);
     }
 
     public static <T> ConfigValue<List<T>> typedList(
-            ConfigFile file, ValueBuilder<List<T>> b, ValueCodec<T> elementCodec) {
+            Backend backend, ValueBuilder<List<T>> b, ValueCodec<T> elementCodec) {
         return bind(
-                file,
+                backend,
                 b,
                 raw -> raw instanceof List<?> list ? mapAll(list, elementCodec) : null,
                 v -> v.stream().map(elementCodec::store).toList());
     }
 
     private static <T> ConfigValue<T> bind(
-            ConfigFile file, ValueBuilder<T> b, Function<Object, T> load, Function<T, Object> store) {
-        // Entries must not retain the ConfigFile wrapper — the file watcher has to let it be GC'd.
-        val backend = Backend.of(file);
+            Backend backend, ValueBuilder<T> b, Function<Object, T> load, Function<T, Object> store) {
         return ConfigValue.of(b.defaultValue(), () -> read(backend, b, load, store), v -> write(backend, b, store, v));
     }
 
-    private record Backend(Config config, Runnable saver, String name) {
-        static Backend of(ConfigFile file) {
+    /** Shared write/read state — holds no {@code ConfigFile} reference so entries never pin the wrapper for GC. */
+    public record Backend(Config config, Runnable saver, String name, boolean strict) {
+        public static Backend of(ConfigFile file) {
             val config = file.config();
             Runnable saver = config instanceof FileConfig fc ? fc::save : () -> {};
             val path = file.path();
-            return new Backend(config, saver, path != null ? path.getFileName().toString() : "<memory>");
+            return new Backend(config, saver, path != null ? path.getFileName().toString() : "<memory>", file.strict());
         }
     }
 
@@ -113,13 +115,24 @@ public class Values {
             comment(config, b);
             return b.defaultValue();
         }
+        Object raw = config.get(path);
+        if (b.mergeBy() != null) {
+            val merged = mergeNamed(store.apply(b.defaultValue()), raw, b.mergeBy());
+            if (merged != raw) {
+                config.set(path, merged);
+                raw = merged;
+            }
+        }
         T value;
         try {
-            value = load.apply(config.get(path));
+            value = load.apply(raw);
         } catch (RuntimeException e) { // codecs like Duration::parse throw on garbage instead of returning null
             value = null;
         }
         T clamped = value == null ? null : clamp(b, value);
+        if (backend.strict() && (clamped == null || !b.validator().test(clamped) || !Objects.equals(clamped, value))) {
+            throw InvalidConfigException.of(path, backend.name(), config.get(path));
+        }
         if (clamped == null || !b.validator().test(clamped)) {
             log.warn(
                     "Invalid value '{}' at '{}' in {} — resetting to {}",
@@ -164,7 +177,7 @@ public class Values {
 
     private static void comment(Config config, ValueBuilder<?> b) {
         if (config instanceof CommentedConfig commented && !b.comment().isEmpty()) {
-            commented.setComment(b.path(), " " + b.comment().replace("\n", "\n "));
+            commented.setComment(b.path(), b.comment().replaceAll("(?m)^(\\S)", " $1"));
         }
     }
 
@@ -178,6 +191,58 @@ public class Values {
             out.add(value);
         }
         return List.copyOf(out);
+    }
+
+    /** Append default table entries whose {@code nameKey} is absent from the file's list; other shapes pass through. */
+    private static Object mergeNamed(Object defStored, Object raw, String nameKey) {
+        if (!(defStored instanceof List<?> defList) || !(raw instanceof List<?> rawList)) {
+            return raw;
+        }
+        for (val d : defList) {
+            if (!(d instanceof Config) || !(((Config) d).get(List.of(nameKey)) instanceof String)) {
+                return raw; // not a named-entry list — leave the user list alone
+            }
+        }
+        val names = new HashSet<String>();
+        for (val t : rawList) {
+            if (t instanceof Config tc && tc.get(List.of(nameKey)) instanceof String tn) {
+                names.add(tn);
+            }
+        }
+        List<Object> merged = null;
+        for (val d : defList) {
+            if (!names.contains(((Config) d).get(List.of(nameKey)))) {
+                if (merged == null) {
+                    merged = new ArrayList<>(rawList);
+                }
+                merged.add(deepCopy(d));
+            }
+        }
+        return merged != null ? merged : raw;
+    }
+
+    private static Object deepCopy(Object v) {
+        if (v instanceof Config src) {
+            val copy = src.configFormat().createConfig(LinkedHashMap::new);
+            for (val e : src.entrySet()) {
+                copy.set(List.of(e.getKey()), deepCopy(e.getValue()));
+            }
+            if (src instanceof CommentedConfig s && copy instanceof CommentedConfig c) {
+                for (val e : src.entrySet()) {
+                    val comment = s.getComment(List.of(e.getKey()));
+                    if (comment != null) {
+                        c.setComment(List.of(e.getKey()), comment);
+                    }
+                }
+            }
+            return copy;
+        }
+        if (v instanceof List<?> list) {
+            val out = new ArrayList<>(list.size());
+            list.forEach(o -> out.add(deepCopy(o)));
+            return out;
+        }
+        return v;
     }
 
     private static Object store(Object value) {

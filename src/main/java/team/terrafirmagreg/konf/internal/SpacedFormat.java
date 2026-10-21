@@ -79,18 +79,19 @@ public record SpacedFormat<C extends CommentedConfig>(ConfigFormat<C> delegate) 
                 out.write('\n');
                 return;
             }
-            if (wrote && !prevComment && !prevBlank && separates(s)) {
+            val t = s.stripLeading();
+            if (wrote && !prevComment && !prevBlank && separates(t)) {
                 out.write('\n');
             }
             wrote = true;
             prevBlank = false;
-            prevComment = s.startsWith("#") || s.startsWith("//");
+            prevComment = t.startsWith("#") || t.startsWith("//");
             out.write(s);
             out.write('\n');
         }
 
-        private static boolean separates(String s) {
-            return s.startsWith("#") || s.startsWith("//") || s.startsWith("[");
+        private static boolean separates(String t) {
+            return t.startsWith("#") || t.startsWith("//") || t.startsWith("[");
         }
 
         @Override

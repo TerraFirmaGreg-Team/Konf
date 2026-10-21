@@ -60,7 +60,7 @@ public class Configs {
 
     /** In-memory config of the given format — no file, {@code load}/{@code save}/{@code close} are no-ops. */
     public ConfigFile memory(ConfigFormat format) {
-        return new ConfigFile(null, format, format.inMemory(), new ArrayList<>());
+        return new ConfigFile(null, format, format.inMemory(), false, new ArrayList<>());
     }
 
     private ConfigFile open(Path file, ConfigFormat format) {

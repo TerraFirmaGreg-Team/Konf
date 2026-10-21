@@ -1,5 +1,6 @@
 package team.terrafirmagreg.konf.value;
 
+import com.electronwill.nightconfig.core.CommentedConfig;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URI;
@@ -27,6 +28,7 @@ public interface ValueCodec<T> {
 
     ValueCodec<Boolean> BOOLEAN = ofType(Boolean.class);
     ValueCodec<String> STRING = ofType(String.class);
+    ValueCodec<CommentedConfig> CONFIG = ofType(CommentedConfig.class);
 
     ValueCodec<Byte> BYTE = ofNumber(Number::byteValue);
     ValueCodec<Short> SHORT = ofNumber(Number::shortValue);

@@ -31,6 +31,9 @@ public final class ConfigFileBuilder {
     @Setter(AccessLevel.NONE)
     private boolean autoreload;
 
+    @Setter(AccessLevel.NONE)
+    private boolean strict;
+
     private ConfigFormat format;
     private String defaultResource;
     private Path defaultData;
@@ -43,11 +46,17 @@ public final class ConfigFileBuilder {
         return this;
     }
 
+    /** Contract files: invalid file content throws {@link InvalidConfigException} instead of resetting to defaults. */
+    public ConfigFileBuilder strict() {
+        this.strict = true;
+        return this;
+    }
+
     public ConfigFile build() {
         val resolved = format != null ? format : ConfigFormat.detect(file);
         // the watch handler must not retain the ConfigFile wrapper — it iterates the shared pending list directly
         val pending = new ArrayList<ValueBuilder<?>>();
-        var builder = resolved.builder(file).sync();
+        var builder = resolved.builder(file).preserveInsertionOrder().sync();
         if (autoreload) {
             builder = builder.autoreload().onAutoReload(() -> pending.forEach(ValueBuilder::fireChange));
         }
@@ -67,7 +76,7 @@ public final class ConfigFileBuilder {
             builder = builder.parsingMode(parsingMode);
         }
         val fileConfig = builder.build();
-        val configFile = new ConfigFile(file, resolved, fileConfig, pending);
+        val configFile = new ConfigFile(file, resolved, fileConfig, strict, pending);
         if (autoreload) {
             // watcher holds fileConfig, not the wrapper — release the watch once the wrapper is GC'd
             CLEANER.register(configFile, fileConfig::close);

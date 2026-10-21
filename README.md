@@ -51,4 +51,16 @@ Also: `of(file)` — detect by extension · `memory(format)` — no file ·
 | `value("x", def, myCodec)`                 | custom `ValueCodec` (`ofString` `ofEnum` `ofNumber` `ofType`)| `codec.store()` |
 | `ValueCodec.DURATION` `UUID_CODEC` …       | ready constants for `value(path, defs, codec)`              | —               |
 
-`./gradlew build` → `build/libs/Konf-*.jar`
+## Contract mode
+
+```java
+var cfg = Configs.builder("pack.json").strict().open();
+cfg.require("id");                    // absent → InvalidConfigException
+cfg.at("dump.assets");                // scoped view, paths relative
+cfg.subconfig("minecraft.loaders");   // open subtree, verify skips it
+cfg.verify();                         // undeclared keys → InvalidConfigException
+```
+
+`strict()` — invalid file value throws instead of reset-to-default.
+
+`./gradlew build` → `build/libs/konf-*.jar`

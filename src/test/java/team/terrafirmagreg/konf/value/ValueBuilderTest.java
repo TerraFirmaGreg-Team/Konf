@@ -2,13 +2,19 @@ package team.terrafirmagreg.konf.value;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.electronwill.nightconfig.core.Config;
+import com.electronwill.nightconfig.json.JsonFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import team.terrafirmagreg.konf.value.Values.Backend;
 
 class ValueBuilderTest {
 
+    private static final Backend BACKEND = new Backend(Config.of(JsonFormat.fancyInstance()), () -> {}, "test", false);
+
     private static <T> ValueBuilder<T> builder(String path, T def) {
-        return new ValueBuilder<>(b -> ConfigValue.of(b.defaultValue(), () -> b.defaultValue(), v -> {}), path, def);
+        return new ValueBuilder<>(
+                (bk, b) -> ConfigValue.of(b.defaultValue(), () -> b.defaultValue(), v -> {}), BACKEND, path, def);
     }
 
     @Test
@@ -41,7 +47,8 @@ class ValueBuilderTest {
 
     @Test
     void realRangeAcceptsIntLiterals() {
-        var b = new ValueBuilder.Real(x -> ConfigValue.of(x.defaultValue(), () -> x.defaultValue(), v -> {}), "a", 1.5);
+        var b = new ValueBuilder.Real(
+                (bk, x) -> ConfigValue.of(x.defaultValue(), () -> x.defaultValue(), v -> {}), BACKEND, "a", 1.5);
         b.range(0, 10);
         assertEquals(0.0, b.min());
         assertEquals(10.0, b.max());

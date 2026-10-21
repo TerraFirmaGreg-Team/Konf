@@ -2,6 +2,7 @@ package team.terrafirmagreg.konf;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.electronwill.nightconfig.core.io.ParsingMode;
@@ -186,6 +187,51 @@ class UsageExampleTest {
         val motd = cfg.value("motd", "Привет");
         cfg.sync();
         assertEquals("Привет", motd.get());
+    }
+
+    @Test
+    void strictModeThrowsOnInvalidValues() throws Exception {
+        val file = dir.resolve("contract.json");
+        Files.writeString(file, "{\"iconSize\": \"big\", \"id\": \"pack\"}");
+        @Cleanup
+        val cfg = Configs.builder(file).format(ConfigFormat.JSON).strict().open();
+
+        val size = cfg.value("iconSize", 32);
+        assertThrows(InvalidConfigException.class, size::get); // "big" isn't an int → throw, no silent reset
+
+        assertEquals("pack", cfg.require("id"));
+        assertEquals(0, cfg.value("missing", 0).get()); // absent keys still materialize defaults
+        assertThrows(InvalidConfigException.class, () -> cfg.require("absent"));
+    }
+
+    @Test
+    void verifyRejectsUndeclaredKeys() throws Exception {
+        val file = dir.resolve("contract.json");
+        Files.writeString(file, "{\"id\": \"x\", \"dump\": {\"assets\": {}, \"asssets\": 1}}");
+        @Cleanup
+        val cfg = Configs.builder(file).format(ConfigFormat.JSON).strict().open();
+
+        cfg.require("id");
+        val dump = cfg.at("dump"); // scoped view: "assets" resolves to "dump.assets"
+        dump.subconfig("assets"); // open subtree — verify skips its contents
+        dump.value("iconSize", 32).get(); // materialized default is declared, not "unknown"
+
+        var e = assertThrows(InvalidConfigException.class, cfg::verify); // typo: asssets
+        assertTrue(e.getMessage().contains("dump.asssets"), e.getMessage());
+    }
+
+    @Test
+    void scopedViewAndSubconfigVerifyPass() {
+        @Cleanup val cfg = Configs.memory(ConfigFormat.JSON);
+        cfg.set("dump.assets.iconSize", 16);
+        cfg.set("minecraft.loaders.forge", "1.20.1");
+
+        val dump = cfg.at("dump");
+        assertEquals(16, dump.<Integer>require("assets.iconSize")); // resolved under the prefix
+        val loaders = cfg.subconfig("minecraft.loaders"); // open map, verify skips it
+        assertEquals("1.20.1", loaders.<String>get("forge"));
+
+        cfg.verify(); // every leaf declared or under an open prefix
     }
 
     @Test

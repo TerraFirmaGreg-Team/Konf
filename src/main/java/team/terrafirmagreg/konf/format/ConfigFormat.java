@@ -10,6 +10,7 @@ import com.electronwill.nightconfig.json.JsonFormat;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import com.electronwill.nightconfig.yaml.YamlFormat;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import lombok.Getter;
 import lombok.experimental.Accessors;
@@ -49,10 +50,10 @@ public enum ConfigFormat {
 
     public Config inMemory() {
         return switch (this) {
-            case TOML -> CommentedConfig.of(new SpacedFormat<>(TomlFormat.instance()));
-            case HOCON -> CommentedConfig.of(new SpacedFormat<>(HoconFormat.instance()));
-            case JSON -> Config.of(JsonFormat.fancyInstance());
-            case YAML -> Config.of(YamlFormat.defaultInstance());
+            case TOML -> CommentedConfig.of(LinkedHashMap::new, new SpacedFormat<>(TomlFormat.instance()));
+            case HOCON -> CommentedConfig.of(LinkedHashMap::new, new SpacedFormat<>(HoconFormat.instance()));
+            case JSON -> Config.of(LinkedHashMap::new, JsonFormat.fancyInstance());
+            case YAML -> Config.of(LinkedHashMap::new, YamlFormat.defaultInstance());
         };
     }
 
