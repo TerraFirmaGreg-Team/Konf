@@ -3,6 +3,11 @@
 Сonfigs on [night-config](https://github.com/TheElectronWill/night-config):
 defaults auto-fill with comments, ranges clamp, invalid edits reset to default.
 
+```groovy
+implementation "team.terrafirmagreg:konf-core:0.1.0"
+implementation "team.terrafirmagreg:konf-toml:0.1.0" // + konf-json / konf-hocon / konf-yaml as needed
+```
+
 ```java
 ConfigFile cfg = Configs.toml("server.toml");
 
@@ -23,12 +28,13 @@ cfg.reload();
 
 ## Formats
 
-| Format | Extensions       | Comments | Open                  |
-|--------|------------------|----------|-----------------------|
-| TOML   | `.toml`          | `#`      | `Configs.toml(file)`  |
-| JSON   | `.json`          | —        | `Configs.json(file)`  |
-| HOCON  | `.conf` `.hocon` | `#`      | `Configs.hocon(file)` |
-| YAML   | `.yaml` `.yml`   | —        | `Configs.yaml(file)`  |
+| Format | Module       | Extensions       | Comments | Open                  |
+|--------|--------------|------------------|----------|-----------------------|
+| TOML   | `konf-toml`  | `.toml`          | `#`      | `Configs.toml(file)`  |
+| JSON   | `konf-json`  | `.json`          | —        | `Configs.json(file)`  |
+| HOCON  | `konf-hocon` | `.conf` `.hocon` | `#`      | `Configs.hocon(file)` |
+| YAML   | `konf-yaml`  | `.yaml` `.yml`   | —        | `Configs.yaml(file)`  |
+
 
 Also: `of(file)` — detect by extension · `memory(format)` — no file ·
 `builder(file)` — autoreload, defaultResource, charset, writing/parsing.
@@ -49,6 +55,7 @@ Also: `of(file)` — detect by extension · `memory(format)` — no file ·
 | `value("big", new BigDecimal("1.5"))`      | `BigInteger` `BigDecimal`                                   | `"1.5"`         |
 | `value("modes", defs, ofEnum(Mode.class))` | `List<T>` via `ValueCodec`                                  | `["NORMAL",…]`  |
 | `value("x", def, myCodec)`                 | custom `ValueCodec` (`ofString` `ofEnum` `ofNumber` `ofType`)| `codec.store()` |
+| `value("app", new App(), bean(App.class))` | POJO or `record` — all fields become a table                | `[app]` `…`     |
 | `ValueCodec.DURATION` `UUID_CODEC` …       | ready constants for `value(path, defs, codec)`              | —               |
 
 ## Contract mode

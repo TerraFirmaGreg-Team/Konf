@@ -10,3 +10,4 @@ plugins {
 }
 
 rootProject.name = "Konf"
+include 'modules:core', 'modules:toml', 'modules:json', 'modules:hocon', 'modules:yaml'
