@@ -1,7 +1,6 @@
 package team.terrafirmagreg.konf.yaml;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import java.nio.file.Path;
@@ -22,7 +21,6 @@ class YamlFormatTest {
         assertInstanceOf(YamlFormat.class, Formats.byName("yaml"));
         assertInstanceOf(YamlFormat.class, Formats.detect(Path.of("app.yaml")));
         assertInstanceOf(YamlFormat.class, Formats.detect(Path.of("app.yml")));
-        assertFalse(YamlFormat.INSTANCE.commented());
     }
 
     @Test

@@ -23,7 +23,6 @@ class HoconFormatTest {
         assertInstanceOf(HoconFormat.class, Formats.byName("hocon"));
         assertInstanceOf(HoconFormat.class, Formats.detect(Path.of("app.conf")));
         assertInstanceOf(HoconFormat.class, Formats.detect(Path.of("app.hocon")));
-        assertTrue(HoconFormat.INSTANCE.commented());
     }
 
     @Test

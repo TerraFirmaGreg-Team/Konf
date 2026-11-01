@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.spotless) apply false
+    alias(libs.plugins.vanniktech.publish) apply false
 }
 
 allprojects {
@@ -12,7 +13,7 @@ subprojects { p ->
         return
     }
     apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
+    apply plugin: 'com.vanniktech.maven.publish'
     apply plugin: 'com.diffplug.spotless'
 
     base {
@@ -23,7 +24,6 @@ subprojects { p ->
         toolchain {
             languageVersion = JavaLanguageVersion.of(findProperty('java_version') as String)
         }
-        withSourcesJar()
     }
 
     repositories {
@@ -55,6 +55,11 @@ subprojects { p ->
         useJUnitPlatform()
     }
 
+    tasks.named('javadoc') {
+        options.encoding = 'UTF-8'
+        options.addBooleanOption('Xdoclint:none', true)
+    }
+
     spotless {
         encoding 'UTF-8'
         java {
@@ -64,6 +69,18 @@ subprojects { p ->
             palantirJavaFormat(libs.versions.palantir.java.format.get()).formatJavadoc(true)
             trimTrailingWhitespace()
             endWithNewline()
+        }
+    }
+
+    afterEvaluate {
+        tasks.withType(Jar).configureEach {
+            destinationDirectory = rootProject.layout.buildDirectory.dir('libs')
+        }
+    }
+
+    gradle.projectsEvaluated {
+        tasks.matching { it.name == 'plainJavadocJar' }.configureEach {
+            destinationDirectory = rootProject.layout.buildDirectory.dir('libs')
         }
     }
 
@@ -77,13 +94,39 @@ subprojects { p ->
         }
     }
 
-    publishing {
-        publications {
-            maven(MavenPublication) {
-                from components.java
-                artifactId = "konf-${project.name}"
+    mavenPublishing {
+        coordinates("${findProperty('lib_package')}", "konf-${project.name}", "${findProperty('lib_version')}")
+
+        publishToMavenCentral(true)
+        signAllPublications()
+
+        pom {
+            name = "konf-${project.name}"
+            description = findProperty('lib_description') as String
+            url = findProperty('lib_url') as String
+            licenses {
+                license {
+                    name = 'GNU Lesser General Public License v3.0'
+                    url = 'https://www.gnu.org/licenses/lgpl-3.0.txt'
+                    distribution = 'repo'
+                }
+            }
+            developers {
+                developer {
+                    id = 'TerraFirmaGreg-Team'
+                    name = findProperty('lib_authors') as String
+                    url = 'https://github.com/TerraFirmaGreg-Team'
+                }
+            }
+            scm {
+                url = findProperty('lib_url') as String
+                connection = 'scm:git:git://github.com/TerraFirmaGreg-Team/Konf.git'
+                developerConnection = 'scm:git:ssh://git@github.com/TerraFirmaGreg-Team/Konf.git'
             }
         }
+    }
+
+    publishing {
         repositories {
             maven {
                 name = 'GitHubPackages'

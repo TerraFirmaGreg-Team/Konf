@@ -5,32 +5,38 @@ import com.electronwill.nightconfig.core.io.WritingMode;
 import java.lang.ref.Cleaner;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import lombok.experimental.FieldDefaults;
 import lombok.val;
 import team.terrafirmagreg.konf.format.ConfigFormat;
 import team.terrafirmagreg.konf.format.Formats;
-import team.terrafirmagreg.konf.value.ValueBuilder;
 
 @Setter
 @Accessors(fluent = true, chain = true)
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public final class ConfigFileBuilder {
 
     private static final Cleaner CLEANER = Cleaner.create();
 
-    private final Path file;
+    final Path file;
 
     @Setter(AccessLevel.NONE)
-    private boolean autoreload;
+    boolean autoreload;
 
     @Setter(AccessLevel.NONE)
-    private boolean strict;
+    boolean strict;
 
-    private ConfigFormat format;
+    Consumer<Path> onSave;
+
+    Consumer<Path> onLoad;
+
+    ConfigFormat format;
 
     public ConfigFileBuilder format(ConfigFormat format) {
         this.format = format;
@@ -41,11 +47,11 @@ public final class ConfigFileBuilder {
         return format(Formats.byName(name));
     }
 
-    private String defaultResource;
-    private Path defaultData;
-    private Charset charset;
-    private WritingMode writingMode;
-    private ParsingMode parsingMode;
+    String defaultResource;
+    Path defaultData;
+    Charset charset;
+    WritingMode writingMode;
+    ParsingMode parsingMode;
 
     public ConfigFileBuilder autoreload() {
         this.autoreload = true;
@@ -59,10 +65,15 @@ public final class ConfigFileBuilder {
 
     public ConfigFile build() {
         val resolved = format != null ? format : Formats.detect(file);
-        val pending = new ArrayList<ValueBuilder<?>>();
+        val ref = new AtomicReference<ConfigFile>();
         var builder = resolved.builder(file).preserveInsertionOrder().sync();
         if (autoreload) {
-            builder = builder.autoreload().onAutoReload(() -> pending.forEach(ValueBuilder::fireChange));
+            builder = builder.autoreload().onAutoReload(() -> {
+                val cfg = ref.get();
+                if (cfg != null) {
+                    cfg.postLoad();
+                }
+            });
         }
         if (defaultResource != null) {
             builder = builder.defaultResource(defaultResource);
@@ -80,7 +91,9 @@ public final class ConfigFileBuilder {
             builder = builder.parsingMode(parsingMode);
         }
         val fileConfig = builder.build();
-        val configFile = new ConfigFile(file, resolved, fileConfig, strict, pending);
+        val configFile = new ConfigFile(file, resolved, fileConfig, strict, onSave, onLoad);
+        ref.set(configFile);
+        configFile.load();
         if (autoreload) {
             CLEANER.register(configFile, fileConfig::close);
         }
@@ -88,8 +101,6 @@ public final class ConfigFileBuilder {
     }
 
     public ConfigFile open() {
-        val config = build();
-        config.load();
-        return config;
+        return build();
     }
 }

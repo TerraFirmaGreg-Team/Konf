@@ -12,10 +12,6 @@ public final class InvalidConfigException extends RuntimeException {
         return new InvalidConfigException("Invalid value '" + raw + "' at '" + path + "' in " + file);
     }
 
-    public static InvalidConfigException missing(String path, String file) {
-        return new InvalidConfigException("Missing required key '" + path + "' in " + file);
-    }
-
     public static InvalidConfigException unknown(List<String> paths, String file) {
         return new InvalidConfigException("Unknown keys in " + file + ": " + String.join(", ", paths));
     }

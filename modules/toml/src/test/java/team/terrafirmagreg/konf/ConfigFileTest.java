@@ -5,13 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.electronwill.nightconfig.core.Config;
-import com.electronwill.nightconfig.core.io.ParsingMode;
-import com.electronwill.nightconfig.toml.TomlFormat;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -72,6 +67,24 @@ class ConfigFileTest {
     }
 
     @Test
+    void resetsFractionalNumberToDefault() throws Exception {
+        val file = dir.resolve("app.toml");
+        Files.writeString(file, "port = 5.7\n");
+        @Cleanup val cfg = Configs.toml(file);
+        val port = cfg.value("port", 25565);
+        assertEquals(25565, port.get());
+    }
+
+    @Test
+    void resetsIntOverflowToDefault() throws Exception {
+        val file = dir.resolve("app.toml");
+        Files.writeString(file, "port = 99999999999\n");
+        @Cleanup val cfg = Configs.toml(file);
+        val port = cfg.value("port", 25565);
+        assertEquals(25565, port.get());
+    }
+
+    @Test
     void enumRoundTripAndFallback() throws Exception {
         val file = dir.resolve("app.toml");
         @Cleanup val cfg = Configs.toml(file);
@@ -80,7 +93,7 @@ class ConfigFileTest {
         assertEquals(Level.HIGH, level.get());
         assertTrue(Files.readString(file).contains("level = \"HIGH\""));
         Files.writeString(file, "level = \"NOPE\"\n");
-        cfg.reload();
+        cfg.load();
         assertEquals(Level.LOW, level.get());
     }
 
@@ -91,17 +104,6 @@ class ConfigFileTest {
         val port = cfg.value("server.port", 25565);
         port.set(8080);
         assertTrue(Files.readString(file).contains("8080"));
-    }
-
-    @Test
-    void firesOnChangeOnReload() throws Exception {
-        val file = dir.resolve("app.toml");
-        @Cleanup val cfg = Configs.toml(file);
-        val seen = new ArrayList<Integer>();
-        cfg.value("port", 1).onChange(seen::add);
-        Files.writeString(file, "port = 2\n");
-        cfg.reload();
-        assertEquals(List.of(2), seen);
     }
 
     @Test
@@ -123,58 +125,6 @@ class ConfigFileTest {
     }
 
     @Test
-    void reconcileMaterializesMissingAndKeepsUserValues() throws Exception {
-        val file = dir.resolve("app.toml");
-        Files.writeString(file, """
-                name = "user-name"
-                [[shaders]]
-                name = "a"
-                """);
-        val doc = TomlFormat.instance().createConfig(LinkedHashMap::new);
-        TomlFormat.instance().createParser().parse("""
-                        # Server name
-                        name = "default-name"
-                        version = "1.0"
-                        [[shaders]]
-                        name = "a"
-                        brightness = 1
-                        [[shaders]]
-                        name = "b"
-                        brightness = 2
-                        """, doc, ParsingMode.REPLACE);
-        @Cleanup val cfg = Configs.toml(file);
-        cfg.reconcile(doc);
-        cfg.sync();
-        val text = Files.readString(file);
-        assertTrue(text.contains("name = \"user-name\""));
-        assertTrue(text.contains("version = \"1.0\""));
-        assertTrue(text.contains("name = \"a\"") && text.contains("name = \"b\""));
-    }
-
-    @Test
-    void reconcileFillsMissingKeysInsideNamedEntry() throws Exception {
-        val file = dir.resolve("app.toml");
-        Files.writeString(file, """
-                [[shaders]]
-                name = "a"
-                brightness = 5
-                """);
-        val doc = TomlFormat.instance().createConfig(LinkedHashMap::new);
-        TomlFormat.instance().createParser().parse("""
-                        [[shaders]]
-                        name = "a"
-                        brightness = 1
-                        gain = 9
-                        """, doc, ParsingMode.REPLACE);
-        @Cleanup val cfg = Configs.toml(file);
-        cfg.reconcile(doc);
-        cfg.sync();
-        val text = Files.readString(file);
-        assertTrue(text.contains("brightness = 5"));
-        assertTrue(text.contains("gain = 9"));
-    }
-
-    @Test
     void multilineStringContentSurvivesRoundTrip() throws Exception {
         val file = dir.resolve("multi.toml");
         @Cleanup val cfg = Configs.toml(file);
@@ -192,57 +142,11 @@ class ConfigFileTest {
     }
 
     @Test
-    void reconcileCopiesUnmodifiableSubtrees() throws Exception {
-        val file = dir.resolve("app.toml");
-        @Cleanup val cfg = Configs.toml(file);
-
-        val doc = TomlFormat.instance().createConfig(LinkedHashMap::new);
-        val sub = TomlFormat.instance().createConfig(LinkedHashMap::new);
-        TomlFormat.instance().createParser().parse("enabled = true\n", sub, ParsingMode.REPLACE);
-        doc.set("features", sub.unmodifiable());
-
-        cfg.reconcile(doc);
-        cfg.set("features.extra", 7);
-        cfg.sync();
-
-        val text = Files.readString(file);
-        assertTrue(text.contains("enabled = true"), text);
-        assertTrue(text.contains("extra = 7"), text);
-    }
-
-    @Test
-    void mergeByAppendsMissingNamedEntries() throws Exception {
-        val file = dir.resolve("merge.toml");
-        Files.writeString(file, "[[shaders]]\nname = \"a\"\ngain = 5\n");
-        @Cleanup val cfg = Configs.toml(file);
-
-        val a = cfg.config().createSubConfig();
-        a.set("name", "a");
-        a.set("gain", 1);
-        val b = cfg.config().createSubConfig();
-        b.set("name", "b");
-        b.set("gain", 2);
-
-        List<Config> merged =
-                cfg.value("shaders", List.of(a, b)).mergeBy("name").get();
-        assertEquals(2, merged.size());
-        assertEquals(5, merged.get(0).<Integer>get("gain"));
-        assertEquals("b", merged.get(1).get("name"));
-    }
-
-    @Test
     void rangeRejectsNonComparableBounds() {
         @Cleanup val cfg = Configs.toml(dir.resolve("r.toml"));
         val re = cfg.value("re", Pattern.compile("x"));
         assertThrows(IllegalArgumentException.class, () -> re.range(Pattern.compile("a"), Pattern.compile("b")));
         assertThrows(NullPointerException.class, () -> re.set(null));
-    }
-
-    @Test
-    void onChangeListenerMayDeclareNewValues() {
-        @Cleanup val cfg = Configs.toml(dir.resolve("l.toml"));
-        cfg.value("a", 1).onChange(v -> cfg.value("b", 2));
-        cfg.reload();
     }
 
     @Test
@@ -260,6 +164,17 @@ class ConfigFileTest {
     void nullDefaultRejectedAtDeclaration() {
         @Cleanup val cfg = Configs.toml(dir.resolve("n.toml"));
         assertThrows(NullPointerException.class, () -> cfg.value("s", (String) null));
+    }
+
+    @Test
+    void directLoadKeepsOverlayPrecedence() throws Exception {
+        val file = dir.resolve("o.toml");
+        Files.writeString(file, "port = 1\n");
+        @Cleanup val cfg = Configs.toml(file);
+        cfg.overlay(Map.of("port", "8080"));
+        Files.writeString(file, "port = 5\n");
+        cfg.load();
+        assertEquals(8080, cfg.value("port", 0).get());
     }
 
     @Test

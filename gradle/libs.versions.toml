@@ -6,6 +6,7 @@ slf4j = "2.0.20"
 jspecify = "1.0.1"
 spotless = "8.10.4"
 palantir-java-format = "2.102.0"
+vanniktech = "0.37.0"
 
 [libraries]
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
@@ -22,3 +23,4 @@ jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 
 [plugins]
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+vanniktech-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech" }

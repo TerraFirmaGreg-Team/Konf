@@ -2,11 +2,12 @@ package team.terrafirmagreg.konf.value;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.electronwill.nightconfig.core.serde.annotations.SerdeComment;
 import com.electronwill.nightconfig.core.serde.annotations.SerdeKey;
+import com.electronwill.nightconfig.core.serde.annotations.SerdeSkipDeserializingIf;
+import com.electronwill.nightconfig.core.serde.annotations.SerdeSkipDeserializingIf.SkipDeIf;
 import com.electronwill.nightconfig.core.serde.annotations.SerdeSkipSerializingIf;
 import com.electronwill.nightconfig.core.serde.annotations.SerdeSkipSerializingIf.SkipSerIf;
 import java.nio.file.Files;
@@ -54,6 +55,7 @@ class BeansTest {
         public int commented = 6;
 
         @SerdeSkipSerializingIf(SkipSerIf.IS_NULL)
+        @SerdeSkipDeserializingIf(SkipDeIf.IS_MISSING)
         public String maybe;
 
         public int priv() {
@@ -63,15 +65,11 @@ class BeansTest {
 
     public record Point(int x, String label) {}
 
-    public static class NoCtor {
-        public NoCtor(int need) {}
-    }
-
     @Test
     void beanRoundTripsAllFieldKinds() throws Exception {
         val file = dir.resolve("b.toml");
         @Cleanup val cfg = Configs.toml(file);
-        cfg.value("app", new Outer(), ValueCodec.bean(Outer.class));
+        cfg.value("app", new Outer(), ValueCodec.bean(Outer::new));
         cfg.sync();
         val text = Files.readString(file);
         assertTrue(text.contains("name = \"n\""), text);
@@ -112,7 +110,7 @@ class BeansTest {
                 b = 4
                 """);
         @Cleanup val cfg = Configs.toml(file);
-        val loaded = cfg.value("app", new Outer(), ValueCodec.bean(Outer.class)).get();
+        val loaded = cfg.value("app", new Outer(), ValueCodec.bean(Outer::new)).get();
         assertEquals("srv", loaded.name);
         assertEquals(1234, loaded.port);
         assertEquals(7, loaded.level);
@@ -133,7 +131,7 @@ class BeansTest {
         val file = dir.resolve("b.toml");
         Files.writeString(file, "[app]\nname = \"only\"\n");
         @Cleanup val cfg = Configs.toml(file);
-        val loaded = cfg.value("app", new Outer(), ValueCodec.bean(Outer.class)).get();
+        val loaded = cfg.value("app", new Outer(), ValueCodec.bean(Outer::new)).get();
         assertEquals("only", loaded.name);
         assertEquals(80, loaded.port);
         assertEquals(1, loaded.inner.x);
@@ -149,22 +147,15 @@ class BeansTest {
         assertTrue(text.contains("x = 1"), text);
         assertTrue(text.contains("label = \"a\""), text);
         Files.writeString(file, "point = {x = 9, label = \"z\"}\n");
-        cfg.reload();
+        cfg.load();
         assertEquals(new Point(9, "z"), point.get());
-    }
-
-    @Test
-    void beanRejectsTypeWithoutNoArgCtor() {
-        @Cleanup val cfg = Configs.toml(dir.resolve("n.toml"));
-        assertThrows(
-                IllegalArgumentException.class, () -> cfg.value("n", new NoCtor(1), ValueCodec.bean(NoCtor.class)));
     }
 
     @Test
     void beanListViaTypedList() throws Exception {
         val file = dir.resolve("b.toml");
         @Cleanup val cfg = Configs.toml(file);
-        val items = cfg.value("items", List.of(new Inner()), ValueCodec.bean(Inner.class));
+        val items = cfg.value("items", List.of(new Inner()), ValueCodec.<Inner>bean(Inner::new));
         cfg.sync();
         val text = Files.readString(file);
         assertTrue(text.contains("[[items]]"), text);
@@ -177,7 +168,7 @@ class BeansTest {
     @Test
     void beanDeclaresWholeSubtreeForVerify() {
         @Cleanup val cfg = Configs.toml(dir.resolve("v.toml"));
-        cfg.value("app", new Outer(), ValueCodec.bean(Outer.class)).get();
+        cfg.value("app", new Outer(), ValueCodec.bean(Outer::new)).get();
         cfg.verify();
     }
 }

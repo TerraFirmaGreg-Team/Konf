@@ -35,4 +35,23 @@ class FormatsTest {
         val e = assertThrows(IllegalStateException.class, () -> Formats.byName("toml"));
         assertTrue(e.getMessage().contains("konf-toml"), e.getMessage());
     }
+
+    @Test
+    void duplicateIdRejected() {
+        assertThrows(IllegalStateException.class, () -> Formats.register(new TestFormat()));
+        assertEquals(1, Formats.all().size());
+    }
+
+    @Test
+    void duplicateExtensionRejected() {
+        val clash = new TestFormat() {
+            @Override
+            public String id() {
+                return "clash";
+            }
+        };
+        val e = assertThrows(IllegalStateException.class, () -> Formats.register(clash));
+        assertTrue(e.getMessage().contains("testext"), e.getMessage());
+        assertEquals(1, Formats.all().size());
+    }
 }

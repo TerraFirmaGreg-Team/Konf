@@ -18,10 +18,27 @@ public class Formats {
 
     static {
         for (val f : ServiceLoader.load(ConfigFormat.class)) {
-            BY_NAME.put(f.id(), f);
-            for (val ext : f.extensions()) {
-                BY_EXTENSION.put(ext, f);
+            register(f);
+        }
+    }
+
+    static void register(ConfigFormat format) {
+        val prev = BY_NAME.get(format.id());
+        if (prev != null) {
+            throw new IllegalStateException("Duplicate config format id '" + format.id() + "': "
+                    + prev.getClass().getName() + " vs " + format.getClass().getName());
+        }
+        for (val ext : format.extensions()) {
+            val prevExt = BY_EXTENSION.get(ext);
+            if (prevExt != null) {
+                throw new IllegalStateException("Duplicate config format extension '" + ext + "': "
+                        + prevExt.getClass().getName() + " vs "
+                        + format.getClass().getName());
             }
+        }
+        BY_NAME.put(format.id(), format);
+        for (val ext : format.extensions()) {
+            BY_EXTENSION.put(ext, format);
         }
     }
 

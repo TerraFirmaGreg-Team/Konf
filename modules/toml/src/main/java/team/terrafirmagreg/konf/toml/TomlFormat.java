@@ -23,11 +23,6 @@ public final class TomlFormat implements ConfigFormat {
     }
 
     @Override
-    public boolean commented() {
-        return true;
-    }
-
-    @Override
     public List<String> extensions() {
         return List.of("toml");
     }

@@ -27,7 +27,6 @@ class TomlFormatTest {
     void registered() {
         assertInstanceOf(TomlFormat.class, Formats.byName("toml"));
         assertInstanceOf(TomlFormat.class, Formats.detect(Path.of("app.TOML")));
-        assertTrue(TomlFormat.INSTANCE.commented());
     }
 
     @Test

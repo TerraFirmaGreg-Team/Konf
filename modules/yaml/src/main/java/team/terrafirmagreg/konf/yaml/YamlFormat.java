@@ -20,11 +20,6 @@ public final class YamlFormat implements ConfigFormat {
     }
 
     @Override
-    public boolean commented() {
-        return false;
-    }
-
-    @Override
     public List<String> extensions() {
         return List.of("yaml", "yml");
     }

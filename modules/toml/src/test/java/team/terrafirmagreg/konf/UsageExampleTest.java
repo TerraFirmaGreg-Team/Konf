@@ -14,7 +14,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -44,8 +43,8 @@ class UsageExampleTest {
 
         val debug = cfg.value("general.debug", false).comment("Debug output");
         val port = cfg.value("server.port", 25565).range(1, 65535).comment("Listen port");
-        val ratio = cfg.value("server.ratio", 1.0).range(0, 10);
-        val seed = cfg.value("world.seed", 42L).range(0, Long.MAX_VALUE);
+        val ratio = cfg.value("server.ratio", 1.0).range(0.0, 10.0);
+        val seed = cfg.value("world.seed", 42L).range(0L, Long.MAX_VALUE);
         val motd = cfg.value("server.motd", "Hello").validate(s -> !s.isBlank());
         val mode = cfg.value("server.mode", Mode.NORMAL);
         val names = cfg.value("server.names", List.of("alpha", "beta"));
@@ -53,9 +52,6 @@ class UsageExampleTest {
         val timeout = cfg.value("server.timeout", Duration.ofMinutes(5));
 
         assertEquals(1234, port.get());
-
-        val fired = new ArrayList<>();
-        cfg.value("server.pretty", true).onChange(fired::add);
 
         port.set(8080);
         cfg.sync();
@@ -70,9 +66,8 @@ class UsageExampleTest {
         assertTrue(text.contains("modes = [ \"NORMAL\"]") || text.contains("[\"NORMAL\"]"), text);
 
         Files.writeString(cfg.path(), text.replace("port = 8080", "port = 9090"));
-        cfg.reload();
+        cfg.load();
         assertEquals(9090, port.get());
-        assertEquals(List.of(true), fired);
 
         assertTrue(cfg.contains("server.port"));
         cfg.set("misc.note", "freeform");

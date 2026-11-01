@@ -1,7 +1,6 @@
 package team.terrafirmagreg.konf.json;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,7 +24,6 @@ class JsonFormatTest {
     void registered() {
         assertInstanceOf(JsonFormat.class, Formats.byName("json"));
         assertInstanceOf(JsonFormat.class, Formats.detect(Path.of("app.JSON")));
-        assertFalse(JsonFormat.INSTANCE.commented());
     }
 
     @Test
@@ -49,9 +47,8 @@ class JsonFormatTest {
         val size = cfg.value("iconSize", 32);
         assertThrows(InvalidConfigException.class, size::get);
 
-        assertEquals("pack", cfg.require("id"));
+        assertEquals("pack", cfg.value("id", "x").get());
         assertEquals(0, cfg.value("missing", 0).get());
-        assertThrows(InvalidConfigException.class, () -> cfg.require("absent"));
     }
 
     @Test
@@ -61,26 +58,10 @@ class JsonFormatTest {
         @Cleanup
         val cfg = Configs.builder(file).format(JsonFormat.INSTANCE).strict().open();
 
-        cfg.require("id");
-        val dump = cfg.at("dump");
-        dump.subconfig("assets");
-        dump.value("iconSize", 32).get();
+        cfg.value("id", "d").get();
+        cfg.value("dump.assets.iconSize", 32).get();
 
         var e = assertThrows(InvalidConfigException.class, cfg::verify);
         assertTrue(e.getMessage().contains("dump.asssets"), e.getMessage());
-    }
-
-    @Test
-    void scopedViewAndSubconfigVerifyPass() {
-        @Cleanup val cfg = Configs.memory(JsonFormat.INSTANCE);
-        cfg.set("dump.assets.iconSize", 16);
-        cfg.set("minecraft.loaders.forge", "1.20.1");
-
-        val dump = cfg.at("dump");
-        assertEquals(16, dump.<Integer>require("assets.iconSize"));
-        val loaders = cfg.subconfig("minecraft.loaders");
-        assertEquals("1.20.1", loaders.<String>get("forge"));
-
-        cfg.verify();
     }
 }

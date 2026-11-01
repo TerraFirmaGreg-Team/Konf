@@ -10,8 +10,6 @@ public interface ConfigFormat {
 
     String id();
 
-    boolean commented();
-
     List<String> extensions();
 
     GenericBuilder<?, ? extends FileConfig> builder(Path file);

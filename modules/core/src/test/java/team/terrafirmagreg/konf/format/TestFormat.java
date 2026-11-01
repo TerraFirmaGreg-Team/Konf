@@ -14,11 +14,6 @@ public class TestFormat implements ConfigFormat {
     }
 
     @Override
-    public boolean commented() {
-        return false;
-    }
-
-    @Override
     public List<String> extensions() {
         return List.of("testext", "tst");
     }
