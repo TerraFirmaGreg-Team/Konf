@@ -313,4 +313,8 @@ public final class ConfigFile implements AutoCloseable {
         pending.add(value);
         return value;
     }
+
+    public ConfigView section(String path) {
+        return new ConfigView(this, path);
+    }
 }
