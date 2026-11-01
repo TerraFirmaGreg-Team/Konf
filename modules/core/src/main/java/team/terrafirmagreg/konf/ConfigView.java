@@ -43,7 +43,7 @@ public final class ConfigView {
     }
 
     private String path(String leaf) {
-        return prefix + "." + leaf;
+        return prefix.isEmpty() ? leaf : prefix + "." + leaf;
     }
 
     public ConfigValue<Boolean> value(String path, boolean def) {

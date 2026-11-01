@@ -314,6 +314,10 @@ public final class ConfigFile implements AutoCloseable {
         return value;
     }
 
+    public ConfigView view() {
+        return new ConfigView(this, "");
+    }
+
     public ConfigView section(String path) {
         return new ConfigView(this, path);
     }

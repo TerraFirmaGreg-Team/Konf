@@ -16,6 +16,21 @@ class ConfigViewTest {
     }
 
     @Test
+    void viewDeclaresRootPaths() {
+        @Cleanup val cfg = file();
+        val v = cfg.view().value("iconSize", 32);
+        assertEquals("iconSize", v.path());
+        assertEquals(32, cfg.<Integer>get("iconSize"));
+    }
+
+    @Test
+    void viewSectionComposes() {
+        @Cleanup val cfg = file();
+        val v = cfg.view().section("dump").value("x", "d");
+        assertEquals("dump.x", v.path());
+    }
+
+    @Test
     void sectionDeclaresPrefixedPaths() {
         @Cleanup val cfg = file();
         val v = cfg.section("dump.assets").value("iconSize", 32);
