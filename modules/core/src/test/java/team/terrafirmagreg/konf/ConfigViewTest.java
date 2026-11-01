@@ -20,6 +20,7 @@ class ConfigViewTest {
         @Cleanup val cfg = file();
         val v = cfg.view().value("iconSize", 32);
         assertEquals("iconSize", v.path());
+        assertEquals(32, v.get());
         assertEquals(32, cfg.<Integer>get("iconSize"));
     }
 
